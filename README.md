@@ -1041,11 +1041,3 @@ Ensure that the following Python packages are installed:
 ```bash
 pip install PyQt6 requests cryptography
 ```
-
-### License
-
-*Specify the licensing terms here, e.g., MIT License, GPL, etc.*
-
----
-
-**End of Documentation**
