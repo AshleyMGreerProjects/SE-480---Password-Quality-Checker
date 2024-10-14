@@ -138,7 +138,7 @@ from cryptography.fernet import Fernet  # For encryption
   - `datetime`: Handling dates and times.
   - `sqlite3`: SQLite database interactions.
   - `math`, `hashlib`: Mathematical operations and hashing functions.
-  
+
 - **Third-Party Libraries:**
   - `requests`: HTTP library for API interactions.
   - `PyQt6`: Framework for building the GUI.
@@ -205,10 +205,10 @@ class PasswordCheckThread(QThread):
 ```
 
 - **Purpose:** Performs asynchronous checks to determine if a given password has been compromised by querying the HIBP API.
-  
+
 - **Attributes:**
   - `password`: The password to be checked.
-  
+
 - **Methods:**
   - `run()`: Initiates the password check process and emits the result.
   - `check_password(password)`: Implements the k-Anonymity model to securely query the HIBP API without exposing the full password hash.
@@ -224,7 +224,7 @@ class PasswordCheckThread(QThread):
 class PasswordQualityChecker(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.settings = QSettings("YourCompany", "PasswordQualityChecker")
+        self.settings = QSettings("AshleyMGreerProjects", "SE-480---Password-Quality-Checker")
         self.minimum_length = self.settings.value("minimum_length", 8, type=int)
         self.maximum_length = self.settings.value("maximum_length", 128, type=int)
         self.compromised_check_enabled = self.settings.value("compromised_check_enabled", True, type=bool)
@@ -243,13 +243,13 @@ class PasswordQualityChecker(QMainWindow):
 ```
 
 - **Inheritance:** Inherits from `QMainWindow`, providing the main application window.
-  
+
 - **Attributes Initialization:**
-  - **QSettings:** Utilizes `QSettings` to persist user preferences across sessions. Stores settings under the organization "YourCompany" and application name "PasswordQualityChecker".
+  - **QSettings:** Utilizes `QSettings` to persist user preferences across sessions. Stores settings under the organization "AshleyMGreerProjects" and application name "SE-480---Password-Quality-Checker".
   - **Password Policy Parameters:** Initializes password policy settings such as minimum and maximum lengths, character type requirements, compromised password checks, history size, and expiration periods.
-  
+
 - **UI Setup:** Calls `initUI()` to build the graphical interface.
-  
+
 - **Database and Encryption Setup:** Initializes the SQLite database with `initDB()`, loads existing password histories via `loadPasswordHistory()`, and sets up encryption with `initEncryption()`.
 
 #### User Interface Setup
@@ -358,17 +358,17 @@ def initUI(self):
 
 - **Palette Configuration:**
   - Sets a black background (`#000000`) with white text (`#FFFFFF`) for high contrast and readability.
-  
+
 - **Stylesheets:**
   - **Widgets:** Defines consistent styling across various widgets like buttons, text fields, progress bars, and tabs.
   - **Buttons:** Dark red background with white text, transitioning to lighter red on hover for interactive feedback.
   - **Text Inputs:** Dark grey background with white text, bordered in dark red to maintain visual consistency.
   - **Progress Bars:** Styled to reflect password strength visually, changing colors based on the evaluation outcome.
-  
+
 - **Layout Structure:**
   - **Main Widget:** Centralizes the UI components.
   - **Tab Widget:** Organizes functionalities into separate tabs for streamlined navigation.
-  
+
 - **Tab Initialization:** Calls dedicated methods (`initCheckerTab()`, `initResourcesTab()`, etc.) to set up each tab's specific content and layout.
 
 #### Password Checker Tab
@@ -467,7 +467,7 @@ def initResourcesTab(self):
 ```
 
 - **Purpose:** Provides users with access to educational resources and guidelines related to password security.
-  
+
 - **Components:**
   - **Dropdown Menu:** Allows users to select specific resources they wish to view.
   - **Display Area:** Renders the selected resource's content in a readable format.
@@ -508,7 +508,7 @@ def initFAQTab(self):
 ```
 
 - **Purpose:** Addresses common questions and concerns users may have regarding password security and application functionalities.
-  
+
 - **Components:**
   - **QTextEdit:** Displays the FAQs in a formatted manner, utilizing HTML for structured presentation.
 
@@ -528,7 +528,7 @@ def initHistoryTab(self):
 ```
 
 - **Purpose:** Allows users to view and manage their password history securely.
-  
+
 - **Components:**
   - **QListWidget:** Displays a list of previously generated passwords along with the date they were added.
   - **Export Button:** Enables users to export their password history to a text file for record-keeping or auditing purposes.
@@ -621,7 +621,7 @@ def initOptionsTab(self):
 ```
 
 - **Purpose:** Provides users with comprehensive customization options to tailor the application's behavior to their specific security needs.
-  
+
 - **Components:**
   - **Password Length Settings:**
     - **Minimum Length SpinBox:** Users can set the minimum required length for passwords (8-128 characters).
@@ -671,7 +671,7 @@ def initHelpTab(self):
         "<li><b>Keep Software Updated:</b> Ensure you are using the latest version of the application for optimal security and features.</li>"
         "</ul>"
         "<h3>Support:</h3>"
-        "<p>If you encounter any issues or have questions, please refer to the FAQ section or contact support at <a href='ash.greer@go.stcloudstate.edu'>ash.greer@go.stcloudstate.edu</a>.</p>"
+        "<p>If you encounter any issues or have questions, please refer to the FAQ section or contact support at <a href='mailto:ash.greer@go.stcloudstate.edu'>ash.greer@go.stcloudstate.edu</a>.</p>"
     )
     help_text.setHtml(help_content)
     layout.addWidget(help_text)
@@ -679,7 +679,7 @@ def initHelpTab(self):
 ```
 
 - **Purpose:** Offers users guidance on how to effectively utilize the application, enhancing user experience and reducing potential confusion.
-  
+
 - **Components:**
   - **Instructions Section:** Step-by-step guide on navigating and using different tabs within the application.
   - **Tips Section:** Best practices for leveraging the application's features optimally.
@@ -701,7 +701,7 @@ def initDB(self):
 ```
 
 - **Purpose:** Sets up the SQLite database to store encrypted password histories, ensuring data persistence across sessions.
-  
+
 - **Process:**
   - **Connection:** Establishes a connection to `password_history.db`. If the file doesn't exist, SQLite creates it.
   - **Table Creation:** Creates a `history` table with `password` and `date_added` columns if it doesn't already exist.
@@ -727,7 +727,7 @@ def initEncryption(self):
 ```
 
 - **Purpose:** Ensures that all stored passwords are encrypted, protecting them from unauthorized access.
-  
+
 - **Process:**
   - **Key Retrieval:** Attempts to read an existing encryption key from `encryption.key`.
   - **Key Generation:** If the key file doesn't exist, generates a new key using Fernet and saves it for future use.
@@ -799,7 +799,7 @@ def evaluatePassword(self, password):
 ```
 
 - **Purpose:** Determines the strength of a password based on length, character composition, and entropy, and optionally checks for compromises.
-  
+
 - **Evaluation Steps:**
   1. **Length Check:** Verifies if the password meets the minimum and does not exceed the maximum length.
   2. **Character Requirements:** Ensures inclusion of uppercase letters, lowercase letters, digits, and special characters as per user settings.
@@ -835,7 +835,7 @@ def generateStrongPassword(self):
 ```
 
 - **Purpose:** Creates a secure, random password that adheres to user-defined policies and ensures it hasn't been compromised.
-  
+
 - **Process:**
   - **Character Set Construction:** Builds a pool of characters based on the enabled requirements (uppercase, lowercase, digits, special characters).
   - **Password Length Determination:** Ensures the generated password meets at least the minimum length, defaulting to 12 characters for enhanced security.
@@ -864,7 +864,7 @@ def savePasswordHistory(self, password):
 ```
 
 - **Purpose:** Securely stores generated passwords in the database while respecting user-defined retention policies.
-  
+
 - **Process:**
   - **Encryption:** Encrypts the password using the established Fernet cipher before storage.
   - **Timestamping:** Records the exact date and time the password was added.
@@ -886,7 +886,7 @@ def copySuggestedPassword(self):
 ```
 
 - **Purpose:** Provides users with a convenient way to copy suggested strong passwords directly to their clipboard for easy use.
-  
+
 - **Process:**
   - **Verification:** Checks if a suggested password (`generated_password`) exists.
   - **Clipboard Interaction:** Copies the password to the system clipboard using `QApplication.clipboard()`.
@@ -904,7 +904,7 @@ def closeEvent(self, event):
 ```
 
 - **Purpose:** Ensures that the SQLite database connection is properly closed when the application terminates, preventing potential data corruption or leaks.
-  
+
 - **Process:**
   - **Connection Closure:** Closes the database connection gracefully.
   - **Event Acceptance:** Proceeds with the application's closure process.
@@ -916,8 +916,8 @@ To set up and run the **Password Quality Checker** application, follow the steps
 1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/YourCompany/PasswordQualityChecker.git
-   cd PasswordQualityChecker
+   git clone https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker.git
+   cd SE-480---Password-Quality-Checker
    ```
 
 2. **Create a Virtual Environment (Recommended):**
@@ -938,9 +938,15 @@ To set up and run the **Password Quality Checker** application, follow the steps
    **`requirements.txt` Content:**
 
    ```
-   PyQt6
-   requests
-   cryptography
+   PyQt6==6.5.2
+   requests==2.31.0
+   cryptography==41.0.3
+   ```
+
+   If a `requirements.txt` file is not present, you can install the dependencies individually:
+
+   ```bash
+   pip install PyQt6 requests cryptography
    ```
 
 4. **Run the Application:**
@@ -1020,6 +1026,17 @@ Throughout a rigorous two-week development cycle, the **Password Quality Checker
 - **API Security:** Confirmed that only partial hashes are sent to the HIBP API, maintaining user privacy.
 - **Clipboard Handling:** Ensured that copied passwords do not linger longer than necessary in the system clipboard.
 
+## Future Enhancements
+
+While the current version of the **Password Quality Checker** offers robust features, several enhancements are planned to further elevate its utility and security:
+
+1. **Multi-Language Support:** Expand the application's accessibility by supporting multiple languages.
+2. **Advanced Reporting:** Provide detailed analytics on password strengths and compromise statistics over time.
+3. **Integration with Password Managers:** Facilitate seamless synchronization with popular password management tools.
+4. **Biometric Authentication:** Incorporate biometric verification methods for enhanced security.
+5. **Cloud Backup:** Offer encrypted cloud storage options for password histories, ensuring data redundancy.
+6. **Custom Policy Templates:** Allow organizations to define and share password policy templates tailored to their security requirements.
+
 ## Conclusion
 
 The **Password Quality Checker** stands as a testament to diligent development and a commitment to enhancing user security. Through its comprehensive feature set, user-centric design, and robust security measures, it empowers individuals and organizations to manage their passwords effectively, safeguarding against potential breaches and vulnerabilities. The meticulous two-week development process ensured that every aspect of the application meets high standards of functionality, security, and usability.
@@ -1039,5 +1056,61 @@ Ensure that the following Python packages are installed:
 **Installation via pip:**
 
 ```bash
-pip install PyQt6 requests cryptography
+pip install PyQt6==6.5.2 requests==2.31.0 cryptography==41.0.3
 ```
+
+Alternatively, if a `requirements.txt` file is provided, install all dependencies at once:
+
+```bash
+pip install -r requirements.txt
+```
+
+**`requirements.txt` Content:**
+
+```
+PyQt6==6.5.2
+requests==2.31.0
+cryptography==41.0.3
+```
+
+*Note:* Including specific version numbers ensures compatibility and stability. Adjust the versions as needed based on your development environment.
+
+### License
+
+The **Password Quality Checker** application is licensed under the [MIT License](https://opensource.org/licenses/MIT).
+
+**MIT License**
+
+```
+MIT License
+
+Copyright (c) 2024 Ashley M. Greer
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+---
+
+**Repository Link:** [SE-480 --- Password Quality Checker](https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker)
+
+For any additional information, updates, or contributions, please visit the [GitHub repository](https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker).
+
+---
+
+**End of Documentation**
