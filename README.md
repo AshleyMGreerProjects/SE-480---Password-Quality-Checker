@@ -1110,7 +1110,3 @@ SOFTWARE.
 **Repository Link:** [SE-480 --- Password Quality Checker](https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker)
 
 For any additional information, updates, or contributions, please visit the [GitHub repository](https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker).
-
----
-
-**End of Documentation**
