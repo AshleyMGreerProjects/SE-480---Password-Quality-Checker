@@ -23,6 +23,7 @@
      - [Database Initialization and Management](#database-initialization-and-management)
      - [Encryption Mechanism](#encryption-mechanism)
      - [Password Evaluation Logic](#password-evaluation-logic)
+       - [User Feedback Messages](#user-feedback-messages)
      - [Password Generation](#password-generation)
      - [Password History Management](#password-history-management)
      - [Clipboard Functionality](#clipboard-functionality)
@@ -40,7 +41,7 @@
 
 ## Introduction
 
-Our **Password Quality Checker** application was made to display our project management skills for SCSU class ***SE 480 Software Project Management*** more importantly, we are dedicated to changes and will be providing updates to the code a nessesary.
+Group project where we have developed **Password Quality Checker** application for St. Cloud State University class ***SE 480 Software Project Management***.
 
 ## Project Overview
 
@@ -808,6 +809,91 @@ def evaluatePassword(self, password):
 
 - **Returns:** A tuple containing the password's strength category and corresponding feedback message.
 
+##### User Feedback Messages
+
+The **Password Quality Checker** application provides clear and actionable feedback based on the evaluation results of a user's password. Specifically, when the application checks if a password has been compromised using the **Have I Been Pwned (HIBP)** API, it displays distinct messages depending on whether the password is found in known data breaches.
+
+###### **1. If the Password **Is Compromised****
+
+**Displayed Messages:**
+
+```
+Password Strength: Compromised
+This password has been found in data breaches X times. Please choose a different password.
+```
+
+- **Explanation:**
+  - **Password Strength:** The label changes to "Compromised" to immediately alert the user that their password is not secure.
+  - **Feedback Message:** Informs the user that the password has been exposed in data breaches **X** number of times (where **X** is the count retrieved from the HIBP API). It strongly recommends choosing a different, more secure password to enhance their account's security.
+
+**Example Scenario:**
+
+```
+Password Strength: Compromised
+This password has been found in data breaches 25 times. Please choose a different password.
+```
+
+###### **2. If the Password **Is Not Compromised****
+
+**Displayed Messages:**
+
+```
+Password Strength: Strong
+Good job! Your password meets the policy requirements.
+```
+
+- **Explanation:**
+  - **Password Strength:** Remains labeled as "Strong," indicating that the password is both complex and has not been found in any known data breaches.
+  - **Feedback Message:** Congratulates the user for selecting a secure password that adheres to the defined policy requirements, reinforcing positive behavior in password management.
+
+**Example Scenario:**
+
+```
+Password Strength: Strong
+Good job! Your password meets the policy requirements.
+```
+
+###### **Additional Context from the Application's Workflow**
+
+1. **Initial Evaluation:**
+   - When a user inputs a password, the application first evaluates its length and complexity based on user-defined policies (e.g., minimum length, inclusion of uppercase letters, digits, special characters).
+   - If the password meets these initial criteria, the application calculates its entropy to assess its strength further.
+
+2. **Compromised Password Check:**
+   - If the password's entropy is high enough (indicating strong complexity) and the **Compromised Password Check** feature is enabled, the application initiates an asynchronous check against the HIBP API.
+   - During this check, the user sees:
+     ```
+     Password Strength: Checking...
+     Checking if the password has been compromised...
+     ```
+
+3. **Final Feedback:**
+   - Based on the API's response, the application updates the feedback messages as outlined above, informing the user of the password's status.
+
+###### **Handling Edge Cases**
+
+- **API Rate Limiting or Network Issues:**
+  - If the application encounters rate limiting (HTTP status code 429) or network-related errors while contacting the HIBP API, it handles these gracefully by informing the user that the compromise check couldn't be completed at that time.
+  - **Possible Message:**
+    ```
+    Password Strength: Strong
+    Unable to verify if the password has been compromised at this time. Please try again later.
+    ```
+
+- **Fallback Mechanism:**
+  - In scenarios where password generation fails to produce a non-compromised password after multiple attempts, the application defaults to a fallback password (e.g., "P@ssw0rd!") and notifies the user accordingly.
+  - **Possible Message:**
+    ```
+    Password Strength: Moderate
+    Generated password has been assigned, but please consider creating a more unique password for enhanced security.
+    ```
+
+###### **Summary**
+
+The **Password Quality Checker** is designed to provide users with immediate and clear feedback on their password's security status. By distinguishing between compromised and uncompromised passwords with specific messages, the application empowers users to make informed decisions, thereby enhancing their overall digital security posture.
+
+If you have any further questions or need additional clarification on the application's functionalities, feel free to consult the **FAQ** or **Help** tabs within the application, or reach out to support at [ash.greer@go.stcloudstate.edu](mailto:ash.greer@go.stcloudstate.edu).
+
 #### Password Generation
 
 ```python
@@ -946,8 +1032,10 @@ To set up and run the **Password Quality Checker** application, follow the steps
    If a `requirements.txt` file is not present, you can install the dependencies individually:
 
    ```bash
-   pip install PyQt6 requests cryptography
+   pip install PyQt6==6.5.2 requests==2.31.0 cryptography==41.0.3
    ```
+
+   *Note:* Including specific version numbers ensures compatibility and stability. Adjust the versions as needed based on your development environment.
 
 4. **Run the Application:**
 
