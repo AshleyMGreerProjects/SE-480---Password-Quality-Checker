@@ -8,14 +8,26 @@
 4. [Technical Specifications](#technical-specifications)
 5. [Architecture and Design](#architecture-and-design)
 6. [Detailed Code Explanation](#detailed-code-explanation)
-   - [Project Structure](#project-structure)
    - [Imports and Dependencies](#imports-and-dependencies)
    - [Constants](#constants)
-   - [1. GUI Module (`gui.py`)](#1-gui-module-guipy)
-   - [2. Front-End Logic Module (`frontend.py`)](#2-front-end-logic-module-frontendpy)
-   - [3. Back-End Logic Module (`backend.py`)](#3-back-end-logic-module-backendpy)
-   - [4. Database Module (`database.py`)](#4-database-module-databasepy)
-   - [5. Main Script (`main.py`)](#5-main-script-mainpy)
+   - [PasswordCheckThread Class](#passwordcheckthread-class)
+   - [PasswordQualityChecker Class](#passwordqualitychecker-class)
+     - [Initialization](#initialization)
+     - [User Interface Setup](#user-interface-setup)
+     - [Password Checker Tab](#password-checker-tab)
+     - [Resources Tab](#resources-tab)
+     - [FAQ Tab](#faq-tab)
+     - [Password History Tab](#password-history-tab)
+     - [Options Tab](#options-tab)
+     - [Help Tab](#help-tab)
+     - [Database Initialization and Management](#database-initialization-and-management)
+     - [Encryption Mechanism](#encryption-mechanism)
+     - [Password Evaluation Logic](#password-evaluation-logic)
+       - [User Feedback Messages](#user-feedback-messages)
+     - [Password Generation](#password-generation)
+     - [Password History Management](#password-history-management)
+     - [Clipboard Functionality](#clipboard-functionality)
+     - [Application Closure](#application-closure)
 7. [Installation and Setup](#installation-and-setup)
 8. [Usage Guide](#usage-guide)
 9. [Testing and Validation](#testing-and-validation)
@@ -29,7 +41,7 @@
 
 ## Introduction
 
-Group project where we have developed the **Password Quality Checker** application for St. Cloud State University's class **SE 480 Software Project Management**.
+Group project where we have developed **Password Quality Checker** application for St. Cloud State University class ***SE 480 Software Project Management***.
 
 ## Project Overview
 
@@ -80,49 +92,31 @@ The **Password Quality Checker** is a desktop application built using Python's P
 
 ## Architecture and Design
 
-The application follows a modular architecture, segregating functionalities into distinct components to enhance maintainability and scalability. The project is organized into five separate Python scripts, all located within the `PQC` folder:
+The application follows a modular architecture, segregating functionalities into distinct components to enhance maintainability and scalability. The primary modules include:
 
-1. **GUI Module (`gui.py`):** Manages the graphical user interface using PyQt6, providing a responsive and intuitive user experience.
+1. **User Interface (UI):** Built using PyQt6, it provides a responsive and intuitive interface with multiple tabs catering to different functionalities.
 
-2. **Front-End Logic Module (`frontend.py`):** Acts as an intermediary between the GUI and the backend logic, handling user interactions, settings management, and data flow.
+2. **Backend Logic:**
+   - **Password Evaluation:** Assesses password strength based on user-defined policies and entropy calculations.
+   - **API Interaction:** Handles asynchronous requests to the HIBP API for compromised password checks.
+   - **Password Generation:** Creates strong passwords adhering to specified criteria.
+   - **Data Management:** Manages password histories with encryption and enforces retention policies.
 
-3. **Back-End Logic Module (`backend.py`):** Contains the core functionalities, including password evaluation, strength calculation, compromised password checks, and content for resources, FAQs, and help sections.
+3. **Security Layer:**
+   - **Encryption:** Ensures that all stored passwords are encrypted, safeguarding against unauthorized access.
+   - **API Rate Limiting:** Implements mechanisms to handle and respect API rate limits, maintaining application reliability.
 
-4. **Database Module (`database.py`):** Manages the SQLite database for storing encrypted password histories and handles encryption and decryption processes.
+4. **Settings Management:** Utilizes QSettings to persist user preferences across sessions, ensuring a personalized experience.
 
-5. **Main Script (`main.py`):** Initializes the application, creates instances of the GUI and front-end logic, and starts the event loop.
-
-### Modular Breakdown
-
-- **Separation of Concerns:** Each module has a distinct responsibility, improving code readability and facilitating easier maintenance and testing.
-
-- **Inter-module Communication:** The modules interact through well-defined interfaces and shared data structures, ensuring a cohesive application workflow.
-
-- **Reusability:** Components like the backend logic and database modules can be reused or extended independently, promoting modular development practices.
-
-The modular design emphasizes security, efficiency, and user-centric development, ensuring that users can manage their passwords confidently and effortlessly.
+The application emphasizes security, efficiency, and user-centric design, ensuring that users can manage their passwords confidently and effortlessly.
 
 ## Detailed Code Explanation
 
 The **Password Quality Checker** application is meticulously crafted to ensure robust password evaluation, secure storage, and user-friendly interactions. This section delves into the intricacies of the application's codebase, elucidating the purpose and functionality of each component.
 
-### Project Structure
-
-All the Python scripts are located within the `PQC` folder:
-
-```
-PQC/
-├── gui.py
-├── frontend.py
-├── backend.py
-├── database.py
-└── main.py
-```
-
 ### Imports and Dependencies
 
 ```python
-# Common imports across modules
 import sys
 import re
 import random
@@ -132,11 +126,9 @@ import sqlite3
 import math
 import hashlib
 import requests  # For making HTTP requests
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QTextEdit, QComboBox, QListWidget, QTabWidget, QCheckBox,
-    QSpinBox, QProgressBar, QFileDialog, QMessageBox, QHBoxLayout, QTextBrowser
-)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QPushButton,
+                             QVBoxLayout, QTextEdit, QComboBox, QListWidget, QTabWidget, QCheckBox,
+                             QSpinBox, QProgressBar, QFileDialog, QMessageBox, QHBoxLayout)
 from PyQt6.QtCore import Qt, QSettings, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QPalette, QColor
 from cryptography.fernet import Fernet  # For encryption
@@ -170,293 +162,15 @@ HIBP_API_URL = "https://api.pwnedpasswords.com/range/"  # Base URL for HIBP API
 - **ENCRYPTION_KEY_FILE:** Specifies the filename where the encryption key is stored.
 - **HIBP_API_URL:** Base endpoint for querying the Have I Been Pwned (HIBP) API using the k-Anonymity model.
 
-### 1. GUI Module (`gui.py`)
+### PasswordCheckThread Class
 
 ```python
-# gui.py
-
-from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QLabel, QLineEdit, QPushButton,
-    QVBoxLayout, QTextEdit, QComboBox, QListWidget, QTabWidget, QCheckBox,
-    QSpinBox, QProgressBar, QFileDialog, QTextBrowser
-)
-from PyQt6.QtGui import QPalette, QColor
-
-class PasswordQualityCheckerGUI(QMainWindow):
-    def __init__(self, frontend_logic):
-        super().__init__()
-        self.frontend_logic = frontend_logic
-        self.settings = self.frontend_logic.settings
-        self.setWindowTitle("Password Quality Checker")
-        self.setGeometry(100, 100, 600, 800)
-        self.initUI()
-
-    def initUI(self):
-        # Palette and stylesheet configuration
-        palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor("#000000"))  # Black background
-        palette.setColor(QPalette.ColorRole.WindowText, QColor("#FFFFFF"))  # White text
-        self.setPalette(palette)
-
-        # Apply stylesheets for widgets
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #000000;  /* Black background */
-                color: #FFFFFF;  /* White text */
-            }
-            QPushButton {
-                background-color: #8B0000;  /* Dark red */
-                color: #FFFFFF;  /* White text */
-                border: none;
-                padding: 10px;
-                border-radius: 5px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #B22222;  /* Lighter red on hover */
-            }
-            QLineEdit, QTextEdit, QSpinBox, QComboBox, QListWidget {
-                background-color: #1C1C1C;  /* Dark grey background */
-                color: #FFFFFF;  /* White text */
-                border: 1px solid #8B0000;
-                padding: 5px;
-                font-size: 14px;
-            }
-            QProgressBar {
-                text-align: center;
-                border: 1px solid #8B0000;
-                border-radius: 5px;
-                background-color: #1C1C1C;
-            }
-            QProgressBar::chunk {
-                background-color: #B22222;
-                width: 1px;
-            }
-            QTabWidget::pane { /* The tab widget frame */
-                border-top: 2px solid #8B0000;
-            }
-            QTabBar::tab {
-                background: #1C1C1C;
-                color: #FFFFFF;
-                padding: 10px;
-                font-size: 14px;
-            }
-            QTabBar::tab:selected {
-                background: #8B0000;
-            }
-            QCheckBox, QLabel {
-                color: #FFFFFF;
-                font-size: 14px;
-            }
-        """)
-
-        # Main layout and tabs initialization
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        main_layout = QVBoxLayout()
-
-        # Tab widget
-        self.tabs = QTabWidget()
-        main_layout.addWidget(self.tabs)
-
-        # Initialize all the tabs
-        self.initTabs()
-
-        main_widget.setLayout(main_layout)
-
-    def initTabs(self):
-        # Password Checker Tab
-        self.checker_tab = QWidget()
-        self.tabs.addTab(self.checker_tab, "Password Checker")
-        self.frontend_logic.initCheckerTab(self.checker_tab)
-
-        # Resources Tab
-        self.resources_tab = QWidget()
-        self.tabs.addTab(self.resources_tab, "Resources")
-        self.frontend_logic.initResourcesTab(self.resources_tab)
-
-        # FAQ Tab
-        self.faq_tab = QWidget()
-        self.tabs.addTab(self.faq_tab, "FAQ")
-        self.frontend_logic.initFAQTab(self.faq_tab)
-
-        # Password History Tab
-        self.history_tab = QWidget()
-        self.tabs.addTab(self.history_tab, "Password History")
-        self.frontend_logic.initHistoryTab(self.history_tab)
-
-        # Options Tab
-        self.options_tab = QWidget()
-        self.tabs.addTab(self.options_tab, "Options")
-        self.frontend_logic.initOptionsTab(self.options_tab)
-
-        # Help Tab
-        self.help_tab = QWidget()
-        self.tabs.addTab(self.help_tab, "Help")
-        self.frontend_logic.initHelpTab(self.help_tab)
-
-    def closeEvent(self, event):
-        self.frontend_logic.database.close()
-        event.accept()
-```
-
-- **Purpose:** Manages all the visual components and layouts of the application using PyQt6.
-
-- **Components:**
-  - **Tabs:** Organizes the UI into tabs such as Password Checker, Resources, FAQ, Password History, Options, and Help.
-  - **Widgets:** Includes labels, input fields, buttons, checkboxes, progress bars, and text areas for user interaction.
-
-- **Interactions:** Connects GUI events (like button clicks) to methods in the front-end logic module, ensuring user actions trigger the appropriate responses.
-
-### 2. Front-End Logic Module (`frontend.py`)
-
-```python
-# frontend.py
-
-from PyQt6.QtWidgets import QApplication, QLineEdit, QFileDialog
-from PyQt6.QtCore import QSettings
-from backend import PasswordEvaluator, PasswordCheckThread
-from database import PasswordDatabase
-
-class PasswordQualityCheckerFrontend:
-    def __init__(self, gui):
-        self.gui = gui
-        self.settings = QSettings("AshleyMGreerProjects", "SE-480---Password-Quality-Checker")
-        # Load settings and initialize components
-        self.loadSettings()
-
-        # Initialize backend components
-        self.password_evaluator = PasswordEvaluator(self)
-        self.database = PasswordDatabase(self)
-        self.generated_password = None
-
-        # Initialize database and load history
-        self.database.initDB()
-        self.database.initEncryption()
-
-    def loadSettings(self):
-        self.minimum_length = self.settings.value("minimum_length", 8, type=int)
-        self.maximum_length = self.settings.value("maximum_length", 128, type=int)
-        self.compromised_check_enabled = self.settings.value("compromised_check_enabled", True, type=bool)
-        self.require_uppercase = self.settings.value("require_uppercase", True, type=bool)
-        self.require_lowercase = self.settings.value("require_lowercase", True, type=bool)
-        self.require_digits = self.settings.value("require_digits", True, type=bool)
-        self.require_special = self.settings.value("require_special", True, type=bool)
-        self.max_history_size = self.settings.value("max_history_size", DEFAULT_MAX_HISTORY_SIZE, type=int)
-        self.password_expiration_days = self.settings.value("password_expiration_days", DEFAULT_PASSWORD_EXPIRATION_DAYS, type=int)
-
-    # Define methods to handle user interactions and update settings
-    def initCheckerTab(self, tab):
-        # Initialize the Password Checker Tab
-        # (Implementation similar to the original script)
-        pass
-
-    def initResourcesTab(self, tab):
-        # Initialize the Resources Tab
-        # (Implementation similar to the original script)
-        pass
-
-    def initFAQTab(self, tab):
-        # Initialize the FAQ Tab
-        # (Implementation similar to the original script)
-        pass
-
-    def initHistoryTab(self, tab):
-        # Initialize the Password History Tab
-        # (Implementation similar to the original script)
-        pass
-
-    def initOptionsTab(self, tab):
-        # Initialize the Options Tab
-        # (Implementation similar to the original script)
-        pass
-
-    def initHelpTab(self, tab):
-        # Initialize the Help Tab
-        # (Implementation similar to the original script)
-        pass
-
-    # Additional methods to handle events, update settings, and interact with the backend and database
-    # ...
-```
-
-- **Purpose:** Acts as a bridge between the GUI and the backend logic, handling user interactions, settings updates, and data flow.
-
-- **Responsibilities:**
-  - **Settings Management:** Loads and updates user preferences using `QSettings`.
-  - **User Interaction Handling:** Responds to GUI events by invoking appropriate backend methods.
-  - **Data Management:** Coordinates data retrieval and storage with the database module.
-
-- **Components:**
-  - **Password Evaluator Instance:** Utilizes the backend logic for password evaluations.
-  - **Database Instance:** Manages password history storage and retrieval.
-
-### 3. Back-End Logic Module (`backend.py`)
-
-```python
-# backend.py
-
-import math
-import re
-import string
-import random
-import hashlib
-import requests
-from PyQt6.QtCore import QThread, pyqtSignal
-
-class PasswordEvaluator:
-    def __init__(self, frontend):
-        self.frontend = frontend
-
-    def calculateEntropy(self, password):
-        pool = 0
-        if re.search(r'[a-z]', password):
-            pool += 26
-        if re.search(r'[A-Z]', password):
-            pool += 26
-        if re.search(r'\d', password):
-            pool += 10
-        if re.search(r'[^\w\s]', password):
-            pool += 32  # Approximate number of special characters
-        entropy = len(password) * math.log2(pool) if pool > 0 else 0
-        return entropy
-
-    def evaluatePassword(self, password):
-        """
-        Evaluate the password's strength and check if it meets policy requirements.
-        Returns a tuple of (strength, feedback).
-        """
-        length = len(password)
-        # Evaluation logic including policy checks and entropy calculation
-        # Returns (strength, feedback)
-        # (Implementation similar to the original script)
-        pass
-
-    def generateStrongPassword(self):
-        """
-        Generate a strong random password that meets the minimum length and is not compromised.
-        """
-        # Password generation logic
-        # (Implementation similar to the original script)
-        pass
-
-    def getResourceContent(self, index):
-        # Returns HTML content for selected resource
-        # (Implementation similar to the original script)
-        pass
-
-    def getFAQContent(self):
-        # Returns HTML content for FAQ section
-        # (Implementation similar to the original script)
-        pass
-
-    def getHelpContent(self):
-        # Returns HTML content for Help section
-        # (Implementation similar to the original script)
-        pass
-
 class PasswordCheckThread(QThread):
-    result = pyqtSignal(bool, int)
+    """
+    Worker thread to check if a password has been compromised.
+    Emits a signal with the result.
+    """
+    result = pyqtSignal(bool, int)  # (is_compromised, count)
 
     def __init__(self, password):
         super().__init__()
@@ -467,6 +181,10 @@ class PasswordCheckThread(QThread):
         self.result.emit(is_compromised, count)
 
     def check_password(self, password):
+        """
+        Check if the password has been compromised using the k-Anonymity model with HIBP API.
+        Returns a tuple of (is_compromised, count).
+        """
         sha1_password = hashlib.sha1(password.encode('utf-8')).hexdigest().upper()
         prefix = sha1_password[:5]
         suffix = sha1_password[5:]
@@ -491,169 +209,832 @@ class PasswordCheckThread(QThread):
             return False, 0
 ```
 
-- **Purpose:** Contains the core functionalities for password evaluation, including strength calculation, compromised password checks, password generation, and providing content for resources, FAQs, and help sections.
+- **Purpose:** Handles the asynchronous checking of passwords against the HIBP API to determine if they've been compromised.
+- **Attributes:**
+  - `password`: The password string to be checked.
+- **Methods:**
+  - `run()`: Executes the password check and emits the result.
+  - `check_password(password)`: Implements the k-Anonymity model by hashing the password, sending a prefix of the hash to the HIBP API, and comparing the suffixes to identify compromises.
+- **Signals:**
+  - `result`: Emits a tuple indicating whether the password is compromised and the number of times it appears in breaches.
 
-- **Components:**
-  - **PasswordEvaluator Class:** Implements methods for assessing password strength, evaluating policies, generating strong passwords, and retrieving content.
-  - **PasswordCheckThread Class:** Handles asynchronous checks against the HIBP API to determine if a password has been compromised.
+### PasswordQualityChecker Class
 
-- **Features:**
-  - **Entropy Calculation:** Uses mathematical computations to determine password strength.
-  - **Policy Enforcement:** Ensures passwords meet user-defined requirements.
-  - **Content Provision:** Supplies HTML-formatted content for various informational tabs.
+The `PasswordQualityChecker` class serves as the core of the application, managing the user interface, settings, database interactions, and the overall workflow.
 
-### 4. Database Module (`database.py`)
-
-```python
-# database.py
-
-import sqlite3
-import datetime
-from cryptography.fernet import Fernet
-
-ENCRYPTION_KEY_FILE = 'encryption.key'
-
-class PasswordDatabase:
-    def __init__(self, frontend):
-        self.frontend = frontend
-        self.conn = None
-        self.cursor = None
-        self.cipher_suite = None
-
-    def initDB(self):
-        """
-        Initialize the SQLite database for password history.
-        """
-        self.conn = sqlite3.connect("password_history.db")
-        self.cursor = self.conn.cursor()
-        self.cursor.execute('''CREATE TABLE IF NOT EXISTS history
-                            (password TEXT, date_added TEXT)''')
-        self.conn.commit()
-        self.cleanupOldPasswords()
-
-    def initEncryption(self):
-        """
-        Initialize encryption for stored passwords.
-        """
-        try:
-            # Check if encryption key exists
-            with open(ENCRYPTION_KEY_FILE, 'rb') as key_file:
-                key = key_file.read()
-        except FileNotFoundError:
-            # Generate a new key and save it
-            key = Fernet.generate_key()
-            with open(ENCRYPTION_KEY_FILE, 'wb') as key_file:
-                key_file.write(key)
-        self.cipher_suite = Fernet(key)
-
-    def encryptPassword(self, password):
-        """
-        Encrypt the password using Fernet symmetric encryption.
-        """
-        encrypted_password = self.cipher_suite.encrypt(password.encode('utf-8'))
-        return encrypted_password.decode('utf-8')
-
-    def decryptPassword(self, encrypted_password):
-        """
-        Decrypt the password using Fernet symmetric encryption.
-        """
-        try:
-            decrypted_password = self.cipher_suite.decrypt(encrypted_password.encode('utf-8')).decode('utf-8')
-            return decrypted_password
-        except:
-            return "Decryption Error"
-
-    def cleanupOldPasswords(self):
-        """
-        Delete passwords older than the expiration period from the history and ensure history size limit.
-        """
-        if self.frontend.password_expiration_days > 0:
-            cutoff_date = datetime.datetime.now() - datetime.timedelta(days=self.frontend.password_expiration_days)
-            self.cursor.execute("DELETE FROM history WHERE date_added < ?", (cutoff_date.strftime('%Y-%m-%d %H:%M:%S'),))
-            self.conn.commit()
-
-        # Enforce maximum history size
-        self.enforceMaxHistorySize()
-
-    def enforceMaxHistorySize(self):
-        """
-        Enforce the maximum password history size.
-        """
-        self.cursor.execute("SELECT COUNT(*) FROM history")
-        count = self.cursor.fetchone()[0]
-        if count > self.frontend.max_history_size:
-            # Delete oldest entries
-            excess = count - self.frontend.max_history_size
-            self.cursor.execute("DELETE FROM history WHERE rowid IN (SELECT rowid FROM history ORDER BY date_added ASC LIMIT ?)", (excess,))
-            self.conn.commit()
-
-    def loadPasswordHistory(self):
-        """
-        Load password history from the database into the history list widget.
-        """
-        self.cleanupOldPasswords()
-        self.frontend.gui.history_list.clear()
-        self.cursor.execute("SELECT password, date_added FROM history ORDER BY date_added DESC")
-        for row in self.cursor.fetchall():
-            decrypted_password = self.decryptPassword(row[0])
-            self.frontend.gui.history_list.addItem(f"{decrypted_password} (Added on {row[1]})")
-
-    def savePasswordHistory(self, password):
-        """
-        Save the generated password to the history database after encryption.
-        """
-        encrypted_password = self.encryptPassword(password)
-        date_added = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        self.cursor.execute("INSERT INTO history (password, date_added) VALUES (?, ?)", (encrypted_password, date_added))
-        self.conn.commit()
-        self.enforceMaxHistorySize()
-
-    def close(self):
-        if self.conn:
-            self.conn.close()
-```
-
-- **Purpose:** Manages the SQLite database for storing encrypted password histories and handles encryption and decryption processes.
-
-- **Components:**
-  - **Database Connection:** Establishes and manages a connection to the SQLite database.
-  - **Encryption Mechanism:** Uses Fernet symmetric encryption to secure stored passwords.
-
-- **Features:**
-  - **Data Persistence:** Ensures password histories are retained across sessions.
-  - **Security:** Encrypts all stored passwords to protect user data.
-  - **Policy Enforcement:** Deletes old passwords based on user-defined expiration settings and history size limits.
-
-### 5. Main Script (`main.py`)
+#### Initialization
 
 ```python
-# main.py
-
-import sys
-from PyQt6.QtWidgets import QApplication
-from gui import PasswordQualityCheckerGUI
-from frontend import PasswordQualityCheckerFrontend
-
-def main():
-    app = QApplication(sys.argv)
-    frontend = PasswordQualityCheckerFrontend(None)
-    gui = PasswordQualityCheckerGUI(frontend)
-    frontend.gui = gui
-    frontend.database.loadPasswordHistory()
-    gui.show()
-    sys.exit(app.exec())
-
-if __name__ == "__main__":
-    main()
+class PasswordQualityChecker(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.settings = QSettings("AshleyMGreerProjects", "SE-480---Password-Quality-Checker")
+        self.minimum_length = self.settings.value("minimum_length", 8, type=int)
+        self.maximum_length = self.settings.value("maximum_length", 128, type=int)
+        self.compromised_check_enabled = self.settings.value("compromised_check_enabled", True, type=bool)
+        self.require_uppercase = self.settings.value("require_uppercase", True, type=bool)
+        self.require_lowercase = self.settings.value("require_lowercase", True, type=bool)
+        self.require_digits = self.settings.value("require_digits", True, type=bool)
+        self.require_special = self.settings.value("require_special", True, type=bool)
+        self.max_history_size = self.settings.value("max_history_size", DEFAULT_MAX_HISTORY_SIZE, type=int)
+        self.password_expiration_days = self.settings.value("password_expiration_days", DEFAULT_PASSWORD_EXPIRATION_DAYS, type=int)
+        self.setWindowTitle("Password Quality Checker")
+        self.setGeometry(100, 100, 600, 800)  # Increased height for better UI
+        self.initUI()
+        self.initDB()
+        self.loadPasswordHistory()
+        self.initEncryption()
 ```
 
-- **Purpose:** Initializes the application, creates instances of the GUI and front-end logic, and starts the event loop.
+- **Inheritance:** Inherits from `QMainWindow`, providing the main window framework.
+- **Attributes Initialization:**
+  - **QSettings:** Loads user preferences, allowing settings to persist across sessions.
+  - **Password Policy Parameters:** Initializes various password policy settings such as length requirements, character type necessities, compromised password checks, history size, and expiration periods.
+- **UI and Backend Setup:**
+  - `initUI()`: Constructs the graphical user interface.
+  - `initDB()`: Sets up the SQLite database for password history.
+  - `loadPasswordHistory()`: Retrieves and displays existing password histories.
+  - `initEncryption()`: Establishes encryption mechanisms for secure password storage.
 
+#### User Interface Setup
+
+```python
+def initUI(self):
+    # Set up the palette for UI styling
+    palette = QPalette()
+    palette.setColor(QPalette.ColorRole.Window, QColor("#000000"))  # Black background
+    palette.setColor(QPalette.ColorRole.WindowText, QColor("#FFFFFF"))  # White text
+    self.setPalette(palette)
+
+    # Apply stylesheets for widgets
+    self.setStyleSheet("""
+        QWidget {
+            background-color: #000000;  /* Black background */
+            color: #FFFFFF;  /* White text */
+        }
+        QPushButton {
+            background-color: #8B0000;  /* Dark red */
+            color: #FFFFFF;  /* White text */
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        QPushButton:hover {
+            background-color: #B22222;  /* Lighter red on hover */
+        }
+        QLineEdit, QTextEdit, QSpinBox, QComboBox, QListWidget {
+            background-color: #1C1C1C;  /* Dark grey background */
+            color: #FFFFFF;  /* White text */
+            border: 1px solid #8B0000;
+            padding: 5px;
+            font-size: 14px;
+        }
+        QProgressBar {
+            text-align: center;
+            border: 1px solid #8B0000;
+            border-radius: 5px;
+            background-color: #1C1C1C;
+        }
+        QProgressBar::chunk {
+            background-color: #B22222;
+            width: 1px;
+        }
+        QTabWidget::pane { /* The tab widget frame */
+            border-top: 2px solid #8B0000;
+        }
+        QTabBar::tab {
+            background: #1C1C1C;
+            color: #FFFFFF;
+            padding: 10px;
+            font-size: 14px;
+        }
+        QTabBar::tab:selected {
+            background: #8B0000;
+        }
+        QCheckBox, QLabel {
+            color: #FFFFFF;
+            font-size: 14px;
+        }
+    """)
+
+    # Main widget and layout
+    main_widget = QWidget()
+    self.setCentralWidget(main_widget)
+    main_layout = QVBoxLayout()
+
+    # Tab widget
+    self.tabs = QTabWidget()
+    main_layout.addWidget(self.tabs)
+
+    # Password Checker Tab
+    self.checker_tab = QWidget()
+    self.tabs.addTab(self.checker_tab, "Password Checker")
+    self.initCheckerTab()
+
+    # Resources Tab
+    self.resources_tab = QWidget()
+    self.tabs.addTab(self.resources_tab, "Resources")
+    self.initResourcesTab()
+
+    # FAQ Tab
+    self.faq_tab = QWidget()
+    self.tabs.addTab(self.faq_tab, "FAQ")
+    self.initFAQTab()
+
+    # Password History Tab
+    self.history_tab = QWidget()
+    self.tabs.addTab(self.history_tab, "Password History")
+    self.initHistoryTab()
+
+    # Options Tab
+    self.options_tab = QWidget()
+    self.tabs.addTab(self.options_tab, "Options")
+    self.initOptionsTab()
+
+    # Help Tab
+    self.help_tab = QWidget()
+    self.tabs.addTab(self.help_tab, "Help")
+    self.initHelpTab()
+
+    main_widget.setLayout(main_layout)
+```
+
+- **Palette Configuration:**
+  - Sets a black background (`#000000`) with white text (`#FFFFFF`) for high contrast and readability.
+
+- **Stylesheets:**
+  - **Widgets:** Defines consistent styling across various widgets like buttons, text fields, progress bars, and tabs.
+  - **Buttons:** Dark red background with white text, transitioning to lighter red on hover for interactive feedback.
+  - **Text Inputs:** Dark grey background with white text, bordered in dark red to maintain visual consistency.
+  - **Progress Bars:** Styled to reflect password strength visually, changing colors based on the evaluation outcome.
+
+- **Layout Structure:**
+  - **Main Widget:** Centralizes the UI components.
+  - **Tab Widget:** Organizes functionalities into separate tabs for streamlined navigation.
+
+- **Tab Initialization:** Calls dedicated methods (`initCheckerTab()`, `initResourcesTab()`, etc.) to set up each tab's specific content and layout.
+
+#### Password Checker Tab
+
+```python
+def initCheckerTab(self):
+    layout = QVBoxLayout()
+
+    # Password Input Label
+    self.input_label = QLabel("Enter your password:")
+    layout.addWidget(self.input_label)
+
+    # Password Input Field
+    self.password_input = QLineEdit()
+    self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+    self.password_input.setToolTip("Enter the password you want to evaluate.")
+    layout.addWidget(self.password_input)
+
+    # Password Strength Meter
+    self.strength_bar = QProgressBar()
+    self.strength_bar.setRange(0, 100)
+    self.strength_bar.setFormat("Strength: %p%")
+    layout.addWidget(self.strength_bar)
+
+    # Update Strength Bar as user types
+    self.password_input.textChanged.connect(self.updateStrengthBar)
+
+    # Password Visibility Toggle
+    self.show_password_checkbox = QCheckBox("Show Password")
+    self.show_password_checkbox.setToolTip("Toggle to show or hide your password.")
+    self.show_password_checkbox.stateChanged.connect(self.togglePasswordVisibility)
+    layout.addWidget(self.show_password_checkbox)
+
+    # Check Password Strength Button
+    self.check_button = QPushButton("Check Password Strength")
+    self.check_button.setToolTip("Click to evaluate the strength of your password and check if it's compromised.")
+    self.check_button.clicked.connect(self.checkPassword)
+    layout.addWidget(self.check_button)
+
+    # Output Area for Feedback
+    self.output_area = QTextEdit()
+    self.output_area.setReadOnly(True)
+    self.output_area.setToolTip("Displays the results of the password evaluation.")
+    layout.addWidget(self.output_area)
+
+    # Clear Output Button
+    self.clear_output_button = QPushButton("Clear Output")
+    self.clear_output_button.setToolTip("Clear the feedback area.")
+    self.clear_output_button.clicked.connect(self.clearOutput)
+    layout.addWidget(self.clear_output_button)
+
+    # Copy Suggested Password Button (Initially Hidden)
+    self.copy_button = QPushButton("Copy Suggested Password")
+    self.copy_button.setToolTip("Copy the suggested password to the clipboard.")
+    self.copy_button.clicked.connect(self.copySuggestedPassword)
+    self.copy_button.hide()  # Hide initially
+    layout.addWidget(self.copy_button)
+
+    self.checker_tab.setLayout(layout)
+```
+
+- **Components:**
+  - **Password Input:** Allows users to enter the password they wish to evaluate. The input is masked by default for security.
+  - **Strength Meter:** A progress bar that visually represents the password's strength, updating in real-time as the user types.
+  - **Visibility Toggle:** A checkbox enabling users to show or hide their entered password.
+  - **Check Button:** Initiates the password evaluation and compromised password check.
+  - **Output Area:** Displays detailed feedback based on the evaluation results.
+  - **Clear Button:** Clears the feedback area.
+  - **Copy Button:** Provides the option to copy a suggested strong password to the clipboard. Hidden by default and shown only when a suggestion is available.
+
+#### Resources Tab
+
+```python
+def initResourcesTab(self):
+    layout = QVBoxLayout()
+    label = QLabel("Select a resource:")
+    layout.addWidget(label)
+
+    self.resource_dropdown = QComboBox()
+    self.resource_dropdown.addItems([
+        "Select",
+        "NIST Guidelines",
+        "OWASP Password Policies",
+        "Password Managers",
+        "Understanding Pwned Passwords",
+        "Tips for Creating Strong Passwords"
+    ])
+    self.resource_dropdown.currentIndexChanged.connect(self.displayResource)
+    layout.addWidget(self.resource_dropdown)
+
+    self.resource_display = QTextEdit()
+    self.resource_display.setReadOnly(True)
+    layout.addWidget(self.resource_display)
+
+    self.resources_tab.setLayout(layout)
+```
+
+- **Purpose:** Provides users with access to educational resources and guidelines related to password security.
+  
+- **Components:**
+  - **Dropdown Menu:** Allows users to select specific resources they wish to view.
+  - **Display Area:** Renders the selected resource's content in a readable format.
+
+- **Functionality:**
+  - **Resource Selection:** When a user selects an option from the dropdown, the corresponding resource content is loaded and displayed in the text area.
+
+- **Sample Resources Included:**
+  - **NIST Guidelines:** Official standards for password creation and management.
+  - **OWASP Password Policies:** Best practices from the Open Web Application Security Project.
+  - **Password Managers:** Information on tools that help in managing and securing passwords.
+  - **Understanding Pwned Passwords:** Insights into password breaches and how to avoid compromised credentials.
+  - **Tips for Creating Strong Passwords:** Practical advice for crafting secure and memorable passwords.
+
+#### FAQ Tab
+
+```python
+def initFAQTab(self):
+    layout = QVBoxLayout()
+    faq_text = QTextEdit()
+    faq_text.setReadOnly(True)
+    faq_content = (
+        "<h2>Frequently Asked Questions:</h2>"
+        "<h3>1. How is my password strength calculated?</h3>"
+        "<p>The application evaluates password strength based on length and complexity, adhering to NIST guidelines. It considers the use of uppercase and lowercase letters, numbers, and special characters.</p>"
+        "<h3>2. What makes a strong password?</h3>"
+        "<p>A strong password is typically at least <b>12 characters</b> long and includes a mix of uppercase and lowercase letters, numbers, and special characters. It should not contain easily guessable information like names or common words.</p>"
+        "<h3>3. Can I customize the password policies?</h3>"
+        "<p>Yes, navigate to the 'Options' tab to adjust settings such as minimum and maximum password length, character requirements, and whether to check if passwords have been compromised.</p>"
+        "<h3>4. How does the compromised password check work?</h3>"
+        "<p>The application uses the k-Anonymity model provided by the Have I Been Pwned (HIBP) API. Your password is hashed, and only a portion of the hash is sent to the API to ensure your password remains private.</p>"
+        "<h3>5. Is my password stored or sent over the internet?</h3>"
+        "<p>No, passwords are never stored or sent in plaintext. Only hashed versions are used for checks, ensuring your password remains secure.</p>"
+        "<h3>6. How can I export my password history?</h3>"
+        "<p>Go to the 'Password History' tab and click on the 'Export History' button to save your password history as a text file.</p>"
+        "<h3>7. What should I do if my password is compromised?</h3>"
+        "<p>If your password is found to be compromised, immediately change it to a strong, unique password. Additionally, enable two-factor authentication (2FA) on your accounts for enhanced security.</p>"
+        "<h3>8. Does the application store my passwords?</h3>"
+        "<p>No, the application does not store your passwords. All password checks are performed securely, and your passwords are neither saved nor transmitted in plaintext.</p>"
+        "<h3>9. Why should I use a password manager?</h3>"
+        "<p>Using a password manager allows you to generate and store complex passwords without having to remember them. This enhances your overall security by enabling the use of unique passwords for each account.</p>"
+        "<h3>10. How often should I change my passwords?</h3>"
+        "<p>While frequent password changes are not necessary without evidence of compromise, it's good practice to update passwords for critical accounts every <b>90 days</b> or if you suspect any security issues.</p>"
+    )
+    faq_text.setHtml(faq_content)
+    layout.addWidget(faq_text)
+    self.faq_tab.setLayout(layout)
+```
+
+- **Purpose:** Addresses common questions and concerns users may have regarding password security and application functionalities.
+  
+- **Components:**
+  - **QTextEdit:** Displays the FAQs in a formatted manner, utilizing HTML for structured presentation.
+
+- **Sample FAQs Covered:**
+  1. **Password Strength Calculation:** Explains the metrics used to assess password strength.
+  2. **Characteristics of a Strong Password:** Defines what constitutes a robust password.
+  3. **Customization of Password Policies:** Guides users on tailoring password requirements.
+  4. **Compromised Password Check Mechanism:** Details how the application verifies password breaches.
+  5. **Data Privacy Assurance:** Confirms that passwords are not stored or transmitted in plaintext.
+  6. **Exporting Password History:** Instructions on saving password histories.
+  7. **Actions on Compromised Passwords:** Advises on steps to take if a password is compromised.
+  8. **Storage of Passwords by the Application:** Reiterates that passwords are not stored.
+  9. **Advantages of Using a Password Manager:** Highlights the benefits of password management tools.
+  10. **Recommended Frequency for Password Changes:** Suggests intervals for updating passwords.
+
+#### Password History Tab
+
+```python
+def initHistoryTab(self):
+    layout = QVBoxLayout()
+    self.history_list = QListWidget()
+    layout.addWidget(self.history_list)
+
+    self.export_button = QPushButton("Export History")
+    self.export_button.clicked.connect(self.exportHistory)
+    layout.addWidget(self.export_button)
+
+    self.history_tab.setLayout(layout)
+```
+
+- **Purpose:** Allows users to view and manage their password history securely.
+  
+- **Components:**
+  - **QListWidget:** Displays a list of previously generated passwords along with the date they were added.
+  - **Export Button:** Enables users to export their password history to a text file for record-keeping or auditing purposes.
+
+- **Functionality:**
+  - **Viewing History:** Lists all stored passwords in an encrypted format, ensuring privacy.
+  - **Exporting History:** Facilitates the creation of a text file containing password histories, which can be saved to a user-specified location.
+
+#### Options Tab
+
+```python
+def initOptionsTab(self):
+    layout = QVBoxLayout()
+
+    # Minimum Password Length Option
+    min_length_label = QLabel("Minimum Password Length:")
+    layout.addWidget(min_length_label)
+
+    self.min_length_spinbox = QSpinBox()
+    self.min_length_spinbox.setRange(8, 128)
+    self.min_length_spinbox.setValue(self.minimum_length)
+    self.min_length_spinbox.valueChanged.connect(self.updateMinimumLength)
+    self.min_length_spinbox.setToolTip("Set the minimum number of characters required for passwords.")
+    layout.addWidget(self.min_length_spinbox)
+
+    # Maximum Password Length Option
+    max_length_label = QLabel("Maximum Password Length:")
+    layout.addWidget(max_length_label)
+
+    self.max_length_spinbox = QSpinBox()
+    self.max_length_spinbox.setRange(8, 128)
+    self.max_length_spinbox.setValue(self.maximum_length)
+    self.max_length_spinbox.valueChanged.connect(self.updateMaximumLength)
+    self.max_length_spinbox.setToolTip("Set the maximum number of characters allowed for passwords.")
+    layout.addWidget(self.max_length_spinbox)
+
+    # Character Type Requirements
+    char_requirements_label = QLabel("Character Requirements:")
+    layout.addWidget(char_requirements_label)
+
+    self.require_uppercase_checkbox = QCheckBox("Require Uppercase Letters")
+    self.require_uppercase_checkbox.setChecked(self.require_uppercase)
+    self.require_uppercase_checkbox.stateChanged.connect(self.updateCharacterRequirements)
+    layout.addWidget(self.require_uppercase_checkbox)
+
+    self.require_lowercase_checkbox = QCheckBox("Require Lowercase Letters")
+    self.require_lowercase_checkbox.setChecked(self.require_lowercase)
+    self.require_lowercase_checkbox.stateChanged.connect(self.updateCharacterRequirements)
+    layout.addWidget(self.require_lowercase_checkbox)
+
+    self.require_digits_checkbox = QCheckBox("Require Digits")
+    self.require_digits_checkbox.setChecked(self.require_digits)
+    self.require_digits_checkbox.stateChanged.connect(self.updateCharacterRequirements)
+    layout.addWidget(self.require_digits_checkbox)
+
+    self.require_special_checkbox = QCheckBox("Require Special Characters")
+    self.require_special_checkbox.setChecked(self.require_special)
+    self.require_special_checkbox.stateChanged.connect(self.updateCharacterRequirements)
+    layout.addWidget(self.require_special_checkbox)
+
+    # Compromised Password Check Option
+    self.compromised_check_checkbox = QCheckBox("Enable Compromised Password Check")
+    self.compromised_check_checkbox.setChecked(self.compromised_check_enabled)
+    self.compromised_check_checkbox.setToolTip("Toggle to enable or disable checking if a password has been compromised.")
+    self.compromised_check_checkbox.stateChanged.connect(self.toggleCompromisedCheck)
+    layout.addWidget(self.compromised_check_checkbox)
+
+    # Password History Settings
+    history_label = QLabel("Password History Settings:")
+    layout.addWidget(history_label)
+
+    max_history_size_label = QLabel("Maximum Password History Size:")
+    layout.addWidget(max_history_size_label)
+
+    self.max_history_spinbox = QSpinBox()
+    self.max_history_spinbox.setRange(10, 1000)
+    self.max_history_spinbox.setValue(self.max_history_size)
+    self.max_history_spinbox.valueChanged.connect(self.updateMaxHistorySize)
+    self.max_history_spinbox.setToolTip("Set the maximum number of passwords to keep in history.")
+    layout.addWidget(self.max_history_spinbox)
+
+    # Password Expiration Setting
+    expiration_label = QLabel("Password Expiration Policy:")
+    layout.addWidget(expiration_label)
+
+    self.password_expiration_spinbox = QSpinBox()
+    self.password_expiration_spinbox.setRange(0, 365)
+    self.password_expiration_spinbox.setValue(self.password_expiration_days)
+    self.password_expiration_spinbox.valueChanged.connect(self.updatePasswordExpiration)
+    self.password_expiration_spinbox.setToolTip("Set the number of days after which passwords should be changed. Set to 0 to disable.")
+    layout.addWidget(self.password_expiration_spinbox)
+
+    self.options_tab.setLayout(layout)
+```
+
+- **Purpose:** Provides users with comprehensive customization options to tailor the application's behavior to their specific security needs.
+  
+- **Components:**
+  - **Password Length Settings:**
+    - **Minimum Length SpinBox:** Users can set the minimum required length for passwords (8-128 characters).
+    - **Maximum Length SpinBox:** Users can define the maximum allowable length for passwords (8-128 characters).
+  
+  - **Character Requirements:**
+    - **Uppercase Letters:** Option to mandate at least one uppercase letter.
+    - **Lowercase Letters:** Option to mandate at least one lowercase letter.
+    - **Digits:** Option to mandate at least one numerical digit.
+    - **Special Characters:** Option to mandate at least one special character (e.g., `!@#$%^&*`).
+  
+  - **Compromised Password Check:**
+    - **Checkbox:** Enables or disables the feature that checks if a password has been compromised.
+  
+  - **Password History Settings:**
+    - **Maximum History Size SpinBox:** Allows users to set how many past passwords are stored (10-1000 entries).
+  
+  - **Password Expiration Policy:**
+    - **Expiration SpinBox:** Users can specify the number of days after which passwords should be changed. Setting it to `0` disables the expiration policy.
+  
+- **Functionality:**
+  - **Dynamic Updates:** Changes to settings are immediately saved using `QSettings` and reflected in the application's behavior.
+  - **Tooltips:** Provide brief explanations for each setting to guide users.
+
+#### Help Tab
+
+```python
+def initHelpTab(self):
+    layout = QVBoxLayout()
+    help_text = QTextEdit()
+    help_text.setReadOnly(True)
+    help_content = (
+        "<h2>Welcome to the Password Quality Checker Application!</h2>"
+        "<h3>Instructions:</h3>"
+        "<ol>"
+        "<li><b>Password Checker Tab:</b> Enter your password to check its strength and see if it's been compromised.</li>"
+        "<li><b>Options Tab:</b> Adjust settings like minimum and maximum password length, character requirements, and toggle compromised password checks.</li>"
+        "<li><b>FAQ Tab:</b> Find answers to common questions about password security and application usage.</li>"
+        "<li><b>Resources Tab:</b> Access additional information and best practices for password management.</li>"
+        "<li><b>Password History Tab:</b> View your password history and export it for your records.</li>"
+        "</ol>"
+        "<h3>Tips for Using the Application:</h3>"
+        "<ul>"
+        "<li><b>Password Strength Meter:</b> As you type your password, the strength meter updates to reflect its security level.</li>"
+        "<li><b>Show Password:</b> Use the 'Show Password' checkbox to toggle visibility of your password.</li>"
+        "<li><b>Export History:</b> Regularly export your password history to maintain a record of generated passwords.</li>"
+        "<li><b>Keep Software Updated:</b> Ensure you are using the latest version of the application for optimal security and features.</li>"
+        "</ul>"
+        "<h3>Support:</h3>"
+        "<p>If you encounter any issues or have questions, please refer to the FAQ section or contact support at <a href='mailto:ash.greer@go.stcloudstate.edu'>ash.greer@go.stcloudstate.edu</a>.</p>"
+    )
+    help_text.setHtml(help_content)
+    layout.addWidget(help_text)
+    self.help_tab.setLayout(layout)
+```
+
+- **Purpose:** Offers users guidance on how to effectively utilize the application, enhancing user experience and reducing potential confusion.
+  
+- **Components:**
+  - **Instructions Section:** Step-by-step guide on navigating and using different tabs within the application.
+  - **Tips Section:** Best practices for leveraging the application's features optimally.
+  - **Support Information:** Contact details for user assistance and troubleshooting.
+
+- **Content Highlights:**
+  - **Password Checker Tab:** Overview of evaluating password strength and compromised checks.
+  - **Options Tab:** Guidance on customizing password policies.
+  - **FAQ Tab:** Reference to commonly asked questions.
+  - **Resources Tab:** Access to educational materials.
+  - **Password History Tab:** Instructions on managing and exporting password histories.
+  - **User Tips:** Enhances effective usage of features like the strength meter and password visibility toggle.
+  - **Support Contact:** Provides an email link for user support.
+
+#### Database Initialization and Management
+
+```python
+def initDB(self):
+    """
+    Initialize the SQLite database for password history.
+    """
+    self.conn = sqlite3.connect("password_history.db")
+    self.cursor = self.conn.cursor()
+    self.cursor.execute('''CREATE TABLE IF NOT EXISTS history
+                        (password TEXT, date_added TEXT)''')
+    self.conn.commit()
+    self.cleanupOldPasswords()
+```
+
+- **Purpose:** Sets up the SQLite database to store encrypted password histories, ensuring data persistence across sessions.
+  
 - **Process:**
-  - **Application Initialization:** Sets up the QApplication instance.
-  - **Component Instantiation:** Creates instances of the frontend logic and GUI, linking them together.
-  - **History Loading:** Loads the password history into the GUI upon startup.
-  - **Event Loop:** Starts the application's event loop to await user interactions.
+  - **Connection:** Establishes a connection to `password_history.db`. If the file doesn't exist, SQLite creates it.
+  - **Table Creation:** Creates a `history` table with `password` and `date_added` columns if it doesn't already exist.
+  - **Data Cleanup:** Invokes `cleanupOldPasswords()` to enforce retention policies upon initialization.
+
+#### Encryption Mechanism
+
+```python
+def initEncryption(self):
+    """
+    Initialize encryption for stored passwords.
+    """
+    try:
+        # Check if encryption key exists
+        with open(ENCRYPTION_KEY_FILE, 'rb') as key_file:
+            key = key_file.read()
+    except FileNotFoundError:
+        # Generate a new key and save it
+        key = Fernet.generate_key()
+        with open(ENCRYPTION_KEY_FILE, 'wb') as key_file:
+            key_file.write(key)
+    self.cipher_suite = Fernet(key)
+```
+
+- **Purpose:** Ensures that all stored passwords are encrypted, protecting them from unauthorized access.
+  
+- **Process:**
+  - **Key Retrieval:** Attempts to read an existing encryption key from `encryption.key`.
+  - **Key Generation:** If the key file doesn't exist, generates a new key using Fernet and saves it for future use.
+  - **Cipher Suite Initialization:** Creates a `Fernet` instance with the retrieved or newly generated key for encryption and decryption operations.
+
+#### Password Evaluation Logic
+
+```python
+def evaluatePassword(self, password):
+    """
+    Evaluate the password's strength and check if it meets policy requirements.
+    Returns a tuple of (strength, feedback).
+    """
+    length = len(password)
+
+    if length < self.minimum_length:
+        strength = "Weak"
+        feedback = f"Password is too short. It should be at least {self.minimum_length} characters long."
+        return strength, feedback
+
+    if length > self.maximum_length:
+        strength = "Weak"
+        feedback = f"Password is too long. It should be no more than {self.maximum_length} characters long."
+        return strength, feedback
+
+    # Check character requirements
+    if self.require_uppercase and not re.search(r'[A-Z]', password):
+        strength = "Weak"
+        feedback = "Password must contain at least one uppercase letter."
+        return strength, feedback
+
+    if self.require_lowercase and not re.search(r'[a-z]', password):
+        strength = "Weak"
+        feedback = "Password must contain at least one lowercase letter."
+        return strength, feedback
+
+    if self.require_digits and not re.search(r'\d', password):
+        strength = "Weak"
+        feedback = "Password must contain at least one digit."
+        return strength, feedback
+
+    if self.require_special and not re.search(r'[^\w\s]', password):
+        strength = "Weak"
+        feedback = "Password must contain at least one special character."
+        return strength, feedback
+
+    # Calculate entropy for strength assessment
+    entropy = self.calculateEntropy(password)
+    if entropy < 50:
+        strength = "Weak"
+        feedback = "Password entropy is low. Consider adding more unique characters."
+    elif entropy < 70:
+        strength = "Moderate"
+        feedback = "Password entropy is moderate. Adding more unique characters can enhance security."
+    else:
+        # Check if compromised
+        if self.compromised_check_enabled:
+            # Start a thread to check password
+            self.thread = PasswordCheckThread(password)
+            self.thread.result.connect(self.handlePasswordCheckResult)
+            self.thread.start()
+            strength = "Checking..."
+            feedback = "Checking if the password has been compromised..."
+        else:
+            strength = "Strong"
+            feedback = "Good job! Your password meets the policy requirements."
+
+    return strength, feedback
+```
+
+- **Purpose:** Determines the strength of a password based on length, character composition, entropy, and optionally checks for compromises.
+  
+- **Evaluation Steps:**
+  1. **Length Check:** Verifies if the password meets the minimum and does not exceed the maximum length.
+  2. **Character Requirements:** Ensures inclusion of uppercase letters, lowercase letters, digits, and special characters as per user settings.
+  3. **Entropy Calculation:** Computes the entropy to assess complexity. Entropy thresholds categorize passwords into Weak, Moderate, or Strong.
+  4. **Compromised Check:** If enabled, asynchronously verifies if the password has been exposed in data breaches.
+
+- **Returns:** A tuple containing the password's strength category and corresponding feedback message.
+
+##### User Feedback Messages
+
+The **Password Quality Checker** application provides clear and actionable feedback based on the evaluation results of a user's password. Specifically, when the application checks if a password has been compromised using the **Have I Been Pwned (HIBP)** API, it displays distinct messages depending on whether the password is found in known data breaches.
+
+###### **1. If the Password **Is Compromised****
+
+**Displayed Messages:**
+
+```
+Password Strength: Compromised
+This password has been found in data breaches X times. Please choose a different password.
+```
+
+- **Explanation:**
+  - **Password Strength:** The label changes to "Compromised" to immediately alert the user that their password is not secure.
+  - **Feedback Message:** Informs the user that the password has been exposed in data breaches **X** number of times (where **X** is the count retrieved from the HIBP API). It strongly recommends choosing a different, more secure password to enhance their account's security.
+
+**Example Scenario:**
+
+```
+Password Strength: Compromised
+This password has been found in data breaches 25 times. Please choose a different password.
+```
+
+###### **2. If the Password **Is Not Compromised****
+
+**Displayed Messages:**
+
+```
+Password Strength: Strong
+Good job! Your password meets the policy requirements.
+```
+
+- **Explanation:**
+  - **Password Strength:** Remains labeled as "Strong," indicating that the password is both complex and has not been found in any known data breaches.
+  - **Feedback Message:** Congratulates the user for selecting a secure password that adheres to the defined policy requirements, reinforcing positive behavior in password management.
+
+**Example Scenario:**
+
+```
+Password Strength: Strong
+Good job! Your password meets the policy requirements.
+```
+
+###### **Additional Context from the Application's Workflow**
+
+1. **Initial Evaluation:**
+   - When a user inputs a password, the application first evaluates its length and complexity based on user-defined policies (e.g., minimum length, inclusion of uppercase letters, digits, special characters).
+   - If the password meets these initial criteria, the application calculates its entropy to assess its strength further.
+
+2. **Compromised Password Check:**
+   - If the password's entropy is high enough (indicating strong complexity) and the **Compromised Password Check** feature is enabled, the application initiates an asynchronous check against the HIBP API.
+   - During this check, the user sees:
+     ```
+     Password Strength: Checking...
+     Checking if the password has been compromised...
+     ```
+
+3. **Final Feedback:**
+   - Based on the API's response, the application updates the feedback messages as outlined above, informing the user of the password's status.
+
+###### **Handling Edge Cases**
+
+- **API Rate Limiting or Network Issues:**
+  - If the application encounters rate limiting (HTTP status code 429) or network-related errors while contacting the HIBP API, it handles these gracefully by informing the user that the compromise check couldn't be completed at that time.
+  - **Possible Message:**
+    ```
+    Password Strength: Strong
+    Unable to verify if the password has been compromised at this time. Please try again later.
+    ```
+
+- **Fallback Mechanism:**
+  - In scenarios where password generation fails to produce a non-compromised password after multiple attempts, the application defaults to a fallback password (e.g., "P@ssw0rd!") and notifies the user accordingly.
+  - **Possible Message:**
+    ```
+    Password Strength: Moderate
+    Generated password has been assigned, but please consider creating a more unique password for enhanced security.
+    ```
+
+###### **Summary**
+
+The **Password Quality Checker** is designed to provide users with immediate and clear feedback on their password's security status. By distinguishing between compromised and uncompromised passwords with specific messages, the application empowers users to make informed decisions, thereby enhancing their overall digital security posture.
+
+If you have any further questions or need additional clarification on the application's functionalities, feel free to consult the **FAQ** or **Help** tabs within the application, or reach out to support at [ash.greer@go.stcloudstate.edu](mailto:ash.greer@go.stcloudstate.edu).
+
+#### Password Generation
+
+```python
+def generateStrongPassword(self):
+    """
+    Generate a strong random password that meets the minimum length and is not compromised.
+    """
+    # Define character sets based on requirements
+    character_sets = ''
+    if self.require_uppercase:
+        character_sets += string.ascii_uppercase
+    if self.require_lowercase:
+        character_sets += string.ascii_lowercase
+    if self.require_digits:
+        character_sets += string.digits
+    if self.require_special:
+        character_sets += string.punctuation
+
+    password_length = max(self.minimum_length, 12)
+    for _ in range(100):  # Limit attempts to prevent infinite loops
+        password = ''.join(random.choice(character_sets) for _ in range(password_length))
+        if not self.isCompromisedPasswordDirect(password):
+            return password
+    return "P@ssw0rd!"  # Fallback password if generation fails
+```
+
+- **Purpose:** Creates a secure, random password that adheres to user-defined policies and ensures it hasn't been compromised.
+  
+- **Process:**
+  - **Character Set Construction:** Builds a pool of characters based on the enabled requirements (uppercase, lowercase, digits, special characters).
+  - **Password Length Determination:** Ensures the generated password meets at least the minimum length, defaulting to 12 characters for enhanced security.
+  - **Generation Loop:** Attempts up to 100 times to create a password that hasn't been compromised. If unsuccessful, defaults to a fallback password.
+
+- **Fallback Mechanism:**
+  - If the application cannot generate a unique, uncompromised password after 100 attempts, it assigns a default password (`"P@ssw0rd!"`) and notifies the user accordingly.
+
+#### Password History Management
+
+```python
+def savePasswordHistory(self, password):
+    """
+    Save the generated password to the history database after encryption.
+    """
+    encrypted_password = self.encryptPassword(password)
+    date_added = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    self.cursor.execute("INSERT INTO history (password, date_added) VALUES (?, ?)", (encrypted_password, date_added))
+    self.conn.commit()
+
+    # Enforce maximum history size
+    self.cursor.execute("SELECT COUNT(*) FROM history")
+    count = self.cursor.fetchone()[0]
+    if count > self.max_history_size:
+        # Delete oldest entries
+        excess = count - self.max_history_size
+        self.cursor.execute("DELETE FROM history WHERE rowid IN (SELECT rowid FROM history ORDER BY date_added ASC LIMIT ?)", (excess,))
+        self.conn.commit()
+```
+
+- **Purpose:** Securely stores generated passwords in the database while respecting user-defined retention policies.
+  
+- **Process:**
+  - **Encryption:** Encrypts the password using the established Fernet cipher before storage.
+  - **Timestamping:** Records the exact date and time the password was added.
+  - **Retention Enforcement:** Checks if the number of stored passwords exceeds the maximum history size. If so, deletes the oldest entries to maintain the limit.
+
+#### Clipboard Functionality
+
+```python
+def copySuggestedPassword(self):
+    """
+    Copy the suggested password to the clipboard.
+    """
+    if hasattr(self, 'generated_password'):
+        clipboard = QApplication.clipboard()
+        clipboard.setText(self.generated_password)
+        self.output_area.append("\nSuggested password copied to clipboard.")
+    else:
+        self.output_area.append("\nNo suggested password to copy.")
+```
+
+- **Purpose:** Provides users with a convenient way to copy suggested strong passwords directly to their clipboard for easy use.
+  
+- **Process:**
+  - **Verification:** Checks if a suggested password (`generated_password`) exists.
+  - **Clipboard Interaction:** Copies the password to the system clipboard using `QApplication.clipboard()`.
+  - **Feedback:** Notifies the user of the successful copy operation or the absence of a suggestion.
+
+#### Application Closure
+
+```python
+def closeEvent(self, event):
+    """
+    Ensure the database connection is closed when the application exits.
+    """
+    self.conn.close()
+    event.accept()
+```
+
+- **Purpose:** Ensures that the SQLite database connection is properly closed when the application terminates, preventing potential data corruption or leaks.
+  
+- **Process:**
+  - **Connection Closure:** Closes the database connection gracefully.
+  - **Event Acceptance:** Proceeds with the application's closure process.
 
 ---
 
@@ -665,7 +1046,7 @@ To set up and run the **Password Quality Checker** application, follow the steps
 
    ```bash
    git clone https://github.com/AshleyMGreerProjects/SE-480---Password-Quality-Checker.git
-   cd SE-480---Password-Quality-Checker/PQC
+   cd SE-480---Password-Quality-Checker
    ```
 
 2. **Create a Virtual Environment (Recommended):**
@@ -691,13 +1072,19 @@ To set up and run the **Password Quality Checker** application, follow the steps
    cryptography==41.0.3
    ```
 
+   If a `requirements.txt` file is not present, you can install the dependencies individually:
+
+   ```bash
+   pip install PyQt6==6.5.2 requests==2.31.0 cryptography==41.0.3
+   ```
+
+   *Note:* Including specific version numbers ensures compatibility and stability. Adjust the versions as needed based on your development environment.
+
 4. **Run the Application:**
 
    ```bash
-   python main.py
+   python PQC.py
    ```
-
-   *Ensure you are inside the `PQC` folder when running the application.*
 
 ### Converting the Application into an Executable
 
@@ -707,6 +1094,8 @@ To distribute the **Password Quality Checker** as a standalone Windows executabl
 
 1. **Install PyInstaller:**
 
+   Open your command prompt or terminal and run:
+
    ```bash
    pip install pyinstaller
    ```
@@ -714,7 +1103,7 @@ To distribute the **Password Quality Checker** as a standalone Windows executabl
 2. **Navigate to the Application Directory:**
 
    ```bash
-   cd path_to_your_application_directory/PQC
+   cd path_to_your_application_directory
    ```
 
 3. **Create the Executable:**
@@ -722,12 +1111,17 @@ To distribute the **Password Quality Checker** as a standalone Windows executabl
    Run PyInstaller with the following options to create a one-file executable without a console window:
 
    ```bash
-   pyinstaller --onefile --windowed main.py
+   pyinstaller --onefile --windowed PQC.py
    ```
+
+   - `--onefile`: Creates a single executable file.
+   - `--windowed`: Suppresses the console window (since this is a GUI application).
 
 4. **Locate the Executable:**
 
-   After PyInstaller finishes, the executable `main.exe` will be located in the `dist` directory within your application folder.
+   After PyInstaller finishes, the executable `PQC.exe` will be located in the `dist` directory within your application folder.
+
+**Note:** If your application uses external files or resources, you may need to include them using the `--add-data` option. Refer to the PyInstaller documentation for more details on packaging data files.
 
 ---
 
@@ -868,7 +1262,23 @@ MIT License
 
 Copyright (c) 2024 Ashley M. Greer
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
 
 ---
