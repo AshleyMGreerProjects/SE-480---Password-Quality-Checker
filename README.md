@@ -40,7 +40,7 @@
 
 ## Introduction
 
-In today's digital landscape, the security of personal and organizational data is paramount. Passwords serve as the first line of defense against unauthorized access. Recognizing the critical role of robust password management, the **Password Quality Checker** application was developed to assist users in creating and maintaining secure passwords. This documentation provides an in-depth analysis of the application's architecture, features, and functionalities, demonstrating the meticulous effort invested over a two-week development period to ensure reliability, security, and user-friendliness.
+Our **Password Quality Checker** application was made to display our project management skills for SCSU class ***SE 480 Software Project Management*** more importantly, we are dedicated to changes and will be providing updates to the code a nessesary.
 
 ## Project Overview
 
